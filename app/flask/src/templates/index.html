@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Home - XPix{% endblock %}
+
+{% block content %}
+<div class="text-center mb-4">
+    <h1>Welcome to XPix</h1>
+    {% if not session.user %}
+    <div class="mt-3">
+        <a href="{{ url_for('login') }}" class="btn btn-outline-primary">Login</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

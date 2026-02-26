@@ -1,0 +1,6 @@
+authlib
+boto3
+python-dotenv
+Flask
+requests
+werkzeug

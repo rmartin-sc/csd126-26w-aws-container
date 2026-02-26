@@ -1,6 +1,6 @@
 {
-    "name": "CSD126 - AWS Container",
-    "runArgs": ["--name", "csd126-aws-container" ],
+    "name": "CSD126 - 26W - SAMPLE STUDENT Container",
+    "runArgs": ["--name", "csd126-26w-sample-student-container" ],
     "build": {
         "dockerfile": "Dockerfile"
     },
@@ -11,7 +11,8 @@
     "containerEnv": {
         "AWS_SHARED_CREDENTIALS_FILE": "${containerWorkspaceFolder}/.aws/credentials",
         "AWS_CONFIG_FILE": "${containerWorkspaceFolder}/.aws/config",
-        "AWS_REGION": "us-east-1"
+        "AWS_REGION": "us-east-1",
+        "AWS_DEFAULT_REGION": "us-east-1"
     },
     "customizations": {
         "vscode": {

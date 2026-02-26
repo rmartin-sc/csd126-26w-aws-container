@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - XPix{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1>User Profile</h1>
+    <div class="mt-3">
+        <p><strong>Username:</strong> {{ user["cognito:username"] }}</p>
+        <p><strong>Email:</strong> {{ user["email"] }}</p>
+    </div>
+</div>
+{% endblock %}
