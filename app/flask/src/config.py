@@ -1,12 +1,11 @@
 import boto3
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
 def get_param(name):
     """Get a parameter from AWS Systems Manager Parameter Store."""
-    ssm = boto3.client('ssm')
+    ssm = boto3.client('ssm', region_name='us-east-1')
     response = ssm.get_parameter(Name=name, WithDecryption=True)
     # There's a lot of information in the response, but we just want the value of the parameter, which is located at response['Parameter']['Value'].
     return response['Parameter']['Value']
