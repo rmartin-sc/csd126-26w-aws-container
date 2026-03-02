@@ -20,7 +20,7 @@ oauth.register(
   authority=app.config['COGNITO_AUTH_URI'],
   client_id=app.config['COGNITO_CLIENT_ID'],
   client_secret=app.config['COGNITO_CLIENT_SECRET'],
-  server_metadata_url=f'{app.config['COGNITO_AUTH_URI']}/.well-known/openid-configuration',
+  server_metadata_url=f"{app.config['COGNITO_AUTH_URI']}/.well-known/openid-configuration",
   client_kwargs={'scope': 'email openid'}
 )
 
@@ -65,12 +65,14 @@ def logout():
     session.pop('display_name', None)
     flash('You have been logged out.', 'info')
 
-    cognito_logout_url = f'{app.config['COGNITO_LOGOUT_URI']}?{urlencode({
-        "client_id": app.config['COGNITO_CLIENT_ID'],
+    params = urlencode({
+        'client_id': app.config['COGNITO_CLIENT_ID'],
         # After logging out of Cognito, we want to redirect the user back to our app's home page, 
         # which is located at the URL for the index() function.
-        "logout_uri": url_for('index', _external=True)
-    })}'
+        'logout_uri': url_for('index', _external=True)
+    })
+
+    cognito_logout_url = f"{app.config['COGNITO_LOGOUT_URI']}?{params}"
 
     # 2) redirect them to the Cognito logout endpoint, 
     # which will log them out of their Cognito session as well, then
