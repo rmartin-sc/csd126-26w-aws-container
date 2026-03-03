@@ -1,14 +1,12 @@
 """Main application file for the Flask app."""
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-# from functools import wraps
 from authlib.integrations.flask_client import OAuth
 from urllib.parse import urlencode
 
 from src.config import Config
 
-# Initialize Flask app
-app = Flask(__name__)
-app.config.from_object(Config)
+app = Flask(__name__)            # Initialize Flask app
+app.config.from_object(Config)   # Load in the configuration from config.py
 
 # Uncomment this line to print the loaded configuration for debugging purposes
 # print(f"Loaded configuration: {app.config}")
@@ -51,7 +49,8 @@ def authorize():
     # The session object is a special object provided by Flask that allows us 
     # to store information about the logged-in user's session.
     session['user'] = user
-    print(f"User info from Cognito: {user}")
+    # Uncomment this line to print the user information for debugging purposes
+    # print(f"User info from Cognito: {user}")
     session['display_name'] = user['cognito:username']
     return redirect(url_for('index'))
 
@@ -71,13 +70,12 @@ def logout():
         # which is located at the URL for the index() function.
         'logout_uri': url_for('index', _external=True)
     })
-
     cognito_logout_url = f"{app.config['COGNITO_LOGOUT_URI']}?{params}"
 
     # 2) redirect them to the Cognito logout endpoint, 
     # which will log them out of their Cognito session as well, then
     # redirect them back to our app's home page after logging out of Cognito.
-    # (See the note in the cognito_logout_url variable above)
+    # (See the note in the cognito_logout_url and params variables above)
     return redirect(cognito_logout_url)
 
 @app.route('/profile')
