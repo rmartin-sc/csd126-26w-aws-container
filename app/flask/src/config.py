@@ -20,6 +20,9 @@ class Config:
     COGNITO_CLIENT_ID = get_param('/app/cognito/client_id')
     COGNITO_CLIENT_SECRET = get_param('/app/cognito/client_secret')
 
+    S3_BUCKET_NAME = get_param('/app/s3/photos_bucket_name')
+    DYNAMODB_TABLE_NAME = get_param('/app/dynamodb/photos_table_name')
+
     # These URIs are constructed based on the user pool ID and the AWS region.
     # They are used by the app to know where to redirect users for authentication and where to redirect after logout.
     COGNITO_AUTH_URI = f'https://cognito-idp.{aws.REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}' 

@@ -1,14 +1,17 @@
 """Main application file for the Flask app."""
 from flask import Flask, render_template, request, redirect, url_for, session, flash
+from functools import wraps
 from authlib.integrations.flask_client import OAuth
 from urllib.parse import urlencode
 
 from src.config import Config
+from src import photos
 
-app = Flask(__name__)            # Initialize Flask app
-app.config.from_object(Config)   # Load in the configuration from config.py
+# Initialize Flask app
+app = Flask(__name__)
+app.config.from_object(Config)
 
-# Uncomment this line to print the loaded configuration for debugging purposes
+# Uncommentk this line to print the loaded configuration for debugging purposes
 # print(f"Loaded configuration: {app.config}")
 
 # Initialize OAuth with the Flask app and register the Cognito OIDC provider
@@ -18,16 +21,33 @@ oauth.register(
   authority=app.config['COGNITO_AUTH_URI'],
   client_id=app.config['COGNITO_CLIENT_ID'],
   client_secret=app.config['COGNITO_CLIENT_SECRET'],
-  server_metadata_url=f"{app.config['COGNITO_AUTH_URI']}/.well-known/openid-configuration",
+    server_metadata_url=f"{app.config['COGNITO_AUTH_URI']}/.well-known/openid-configuration",
   client_kwargs={'scope': 'email openid'}
 )
+
+# Here we define a 'decorator' function that we can use to annotate
+# any route that we want to require the user to be logged in to access.
+# The @wraps(func) decorator is a helper that preserves the original 
+# function's metadata (like its name and docstring) when we wrap it with 
+# our own logic.
+def login_required(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+                if 'user' not in session:
+                        return redirect(url_for('login'))
+                return func(*args, **kwargs)
+
+        return wrapper
 
 # These @app.route annotations define the different URLs in our app.
 # The index() function renders the home page, which is defined in templates/index.html.
 @app.route('/')
 def index():
     """Home page"""
-    return render_template('index.html')
+    feed_photos = photos.get_public_feed()
+    for item in feed_photos:
+        item['image_url'] = photos.get_presigned_url(item['s3_key'])
+    return render_template('index.html', photos=feed_photos)
 
 @app.route('/login')
 def login():
@@ -49,7 +69,6 @@ def authorize():
     # The session object is a special object provided by Flask that allows us 
     # to store information about the logged-in user's session.
     session['user'] = user
-    # Uncomment this line to print the user information for debugging purposes
     # print(f"User info from Cognito: {user}")
     session['display_name'] = user['cognito:username']
     return redirect(url_for('index'))
@@ -65,10 +84,10 @@ def logout():
     flash('You have been logged out.', 'info')
 
     params = urlencode({
-        'client_id': app.config['COGNITO_CLIENT_ID'],
+        "client_id": app.config['COGNITO_CLIENT_ID'],
         # After logging out of Cognito, we want to redirect the user back to our app's home page, 
         # which is located at the URL for the index() function.
-        'logout_uri': url_for('index', _external=True)
+        "logout_uri": url_for('index', _external=True)
     })
     cognito_logout_url = f"{app.config['COGNITO_LOGOUT_URI']}?{params}"
 
@@ -79,13 +98,83 @@ def logout():
     return redirect(cognito_logout_url)
 
 @app.route('/profile')
+@login_required
 def profile():
     """Profile page"""
-    # This is a protected page that only logged-in users should be able to access.
-    # If the user is not logged in (i.e. they don't have a 'user' key in their session), 
-    # then we redirect them to the login page.
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    
     # If the user is logged in, we render the profile page, which is defined in templates/profile.html.
-    return render_template('profile.html', user=session['user'])
+    user = session['user']
+    user_photos = photos.get_user_photos(user['sub'])
+    for item in user_photos:
+        item['image_url'] = photos.get_presigned_url(item['s3_key'])
+    return render_template('profile.html', user=user, photos=user_photos)
+
+
+@app.route('/upload', methods=['GET'])
+@login_required
+def upload_page():
+    """Upload page"""
+    return render_template('upload.html')
+
+
+@app.route('/upload', methods=['POST'])
+@login_required
+def upload_photo():
+    """Upload a photo"""
+    max_bytes = 5 * 1024 * 1024
+    if request.content_length and request.content_length > max_bytes:
+        flash('Upload exceeds 5 MB limit.', 'danger')
+        return redirect(url_for('upload_page'))
+
+    file_obj = request.files.get('photo')
+    if not file_obj or not file_obj.filename:
+        flash('Please choose an image file to upload.', 'warning')
+        return redirect(url_for('upload_page'))
+
+    user = session['user']
+    try:
+        photos.upload_photo(
+            user_id=user['sub'],
+            username=user.get('cognito:username', user.get('email', 'unknown')),
+            file_obj=file_obj,
+            filename=file_obj.filename,
+        )
+        flash('Photo uploaded successfully.', 'success')
+        return redirect(url_for('profile'))
+    except ValueError as exc:
+        flash(str(exc), 'danger')
+        return redirect(url_for('upload_page'))
+
+
+@app.route('/photos/<photo_id>/delete', methods=['POST'])
+@login_required
+def delete_photo(photo_id):
+    """Delete a photo"""
+    user_id = session['user']['sub']
+    try:
+        photos.delete_photo(photo_id=photo_id, user_id=user_id)
+        flash('Photo deleted.', 'success')
+    except photos.PhotoNotFoundError:
+        flash('Photo not found.', 'warning')
+    except photos.PhotoPermissionError:
+        flash('You cannot delete this photo.', 'danger')
+
+    return redirect(url_for('profile'))
+
+
+@app.route('/photos/<photo_id>/privacy', methods=['POST'])
+@login_required
+def toggle_photo_privacy(photo_id):
+    """Toggle photo privacy"""
+    user_id = session['user']['sub']
+    try:
+        updated_photo = photos.toggle_privacy(photo_id=photo_id, user_id=user_id)
+        if updated_photo.get('is_private'):
+            flash('Photo is now private.', 'info')
+        else:
+            flash('Photo is now public.', 'info')
+    except photos.PhotoNotFoundError:
+        flash('Photo not found.', 'warning')
+    except photos.PhotoPermissionError:
+        flash('You cannot modify this photo.', 'danger')
+
+    return redirect(url_for('profile'))

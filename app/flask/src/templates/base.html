@@ -21,6 +21,9 @@
                     </li>
                     {% if session.user %}
                     <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('upload_page') }}">Upload</a>
+                    </li>
+                    <li class="nav-item">
                         <span class="nav-link">Hello, <a href="{{ url_for('profile') }}">{{ session.display_name }}</a></span>
                     </li>
                     <li class="nav-item">
